@@ -91,10 +91,10 @@ Proof.
 intros H1 H2 Hjeq.
 remember CTEnv as c.
 induction Hjeq; simpl; subst; try inversion Heqc.
+(* EQcongrHCons *) f_equal; auto.
 (* EQrefl *) reflexivity.
 (* EQsym *) apply eq_sym; auto.
 (* EQtrans *) apply eq_trans with (Hlength o2); auto.
-(* EQcongrHCons *) f_equal; auto.
 Qed.
 
 Lemma jeq_lift : forall {o1 o2 c}, jeq o1 o2 c ->
@@ -2610,4 +2610,3 @@ end.
   destruct eC as [jH' _].
   apply JCoer with H' HH' t; auto.
 Qed.
-

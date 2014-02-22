@@ -533,9 +533,6 @@ to be syntactically well-formed. See the discussion for the definition
 of the inductive [jobj] later in this file.
 *)
 Inductive jeq : type -> type -> class -> Prop :=
-| EQrefl : forall o c, cobj o c -> jeq o o c
-| EQsym : forall o1 o2 c, jeq o1 o2 c -> jeq o2 o1 c
-| EQtrans : forall o1 o2 o3 c, jeq o1 o2 c -> jeq o2 o3 c -> jeq o1 o3 c
 | EQcongrKProd :  forall k11 k12 k21 k22,
   jeq k11 k12 CKind -> jeq k21 k22 CKind -> jeq (KProd k11 k21) (KProd k12 k22) CKind
 | EQcongrKRes : forall k1 k2 p1 p2,
@@ -570,6 +567,9 @@ Inductive jeq : type -> type -> class -> Prop :=
   jeq G1 G2 CAEnv -> jeq t1 t2 CType -> jeq (GCons G1 t1) (GCons G2 t2) CAEnv
 | EQTFstPair : forall t s, cobj t CType -> cobj s CType -> jeq (TFst (TPair t s)) t CType
 | EQTSndPair : forall t s, cobj t CType -> cobj s CType -> jeq (TSnd (TPair t s)) s CType
+| EQrefl : forall o c, cobj o c -> jeq o o c
+| EQsym : forall o1 o2 c, jeq o1 o2 c -> jeq o2 o1 c
+| EQtrans : forall o1 o2 o3 c, jeq o1 o2 c -> jeq o2 o3 c -> jeq o1 o3 c
 .
 
 (** *** Objects
