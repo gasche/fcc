@@ -41,6 +41,10 @@ Ltac crush_jobj :=
       replace (JT (lift 1 0 t) (lift 1 0 k))
       with (jlift 1 0 (JT t k))
         by auto
+    | |- context [ JT (lift 1 0 ?t) ?k ] =>
+      replace (JT (lift 1 0 t) k)
+      with (jlift 1 0 (JT t k))
+        by auto
     | H : jobj ?v ?H _ |-
       jobj ?v (HCons ?H _) (jlift 1 0 _) =>
       apply jobj_shift_0
@@ -90,8 +94,14 @@ Qed.
 Require Import Llanguage.
 Require Import Ltypesystem.
 
+Ltac crush_jterm :=
+  match goal with
+    | |- jterm ?v ?H ?G (Lam _) (TArr _ _) => apply JLam
+    | |- jobj _ _ _ => crush_jobj
+  end.
+
 Definition deltaG_intro := Lam (Inst (Var 0)).
-Definition deltaG_elim t u := App t (Gen u).
+Definition deltaG_elim w a  := App w (Gen a).
 
 Lemma termgen_admissible :
   forall v H G k a t,
@@ -154,7 +164,7 @@ Proof.
   }
   unfold deltaG_intro. unfold propinst.
   apply termgen_admissible; repeat crush_jobj; auto.
-  apply JLam; repeat crush_jobj; auto.
+  repeat crush_jterm; repeat crush_jobj; auto.
   replace (TVar 0)
   with (typesystem.subst (typesystem.lift 1 0 s) 0 (TVar 1))
     by auto.
@@ -163,5 +173,33 @@ Proof.
   apply JVar; repeat crush_jobj; auto.
   repeat constructor.
 Qed.
-  
-  
+
+Lemma deltaG_elim_jterm :
+  forall v H G w k a t,
+    cobj G CAEnv ->
+    jobj v HNil (Jwf H CTEnv) ->
+    jobj v HNil (JH H) ->
+    jobj v H (Jwf k CKind) ->
+    jterm v H G w (propinst k) ->
+    jobj v H (JT t KStar) ->
+    jterm v (HCons H k)
+       (typesystem.lift 1 0 G) a (typesystem.lift 1 0 t) ->
+    jterm v H G (deltaG_elim w a) t.
+Proof.
+  intros v H G w k a t HG HHwf HH Hk Hwk Ht Hat.
+  unfold deltaG_elim.
+  destruct (jobj_class Hk) as [Hcobj Hclassjudg]. simpl in Hclassjudg.
+  { unfold propinst in Hwk.
+    apply JApp with (t := TPi k (typesystem.lift 1 0 t));
+      repeat crush_jobj.
+    - replace (TArr (TPi k (typesystem.lift 1 0 t)) t)
+      with (typesystem.subst t 0
+              (TArr (TPi (typesystem.lift 1 0 k) (TVar 1)) (TVar 0))).
+      apply (terminst_admissible v H G KStar w); repeat crush_jobj.
+      { simpl; repeat f_equal.
+        - apply typesystem.subst_lift_0.
+        - apply typesystem.lift_0.
+      }
+    - apply JGen; repeat crush_jobj.
+  }
+Qed.
