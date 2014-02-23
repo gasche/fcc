@@ -75,12 +75,12 @@ Ltac crush_jobj :=
   end.
 
 Lemma propinst_jobj :
-  forall v H k,
-    jobj v HNil (Jwf H CTEnv) ->
-    jobj v H (JK k) ->
-    jobj v H (JT (propinst k) KStar).
+  forall v H k
+    (HH : jobj v HNil (Jwf H CTEnv))
+    (Hk : jobj v H (JK k))
+  , jobj v H (JT (propinst k) KStar).
 Proof.
-  intros v H k HH Hk.
+  intros.
   destruct (jobj_class Hk) as [Hcobj Hclassjudg].
   simpl in Hclassjudg.
   unfold propinst.
@@ -104,13 +104,13 @@ Definition deltaG_intro := Lam (Inst (Var 0)).
 Definition deltaG_elim w a  := App w (Gen a).
 
 Lemma termgen_admissible :
-  forall v H G k a t,
-    jobj v H (JK k) ->
-    jobj v (HCons H k) (JT t KStar) ->
-    jterm v (HCons H k) (typesystem.lift 1 0 G) a t ->
-    jterm v H G a (TFor k t).
+  forall v H G k a t
+    (Hk : jobj v H (JK k))
+    (Ht : jobj v (HCons H k) (JT t KStar))
+    (Hat : jterm v (HCons H k) (typesystem.lift 1 0 G) a t)
+  , jterm v H G a (TFor k t).
 Proof.
-  intros v H G k a t Hk Ht Hat.
+  intros.
   destruct (jobj_class Hk) as [Hkcobj _].
   destruct (jobj_class Ht) as [_ [Htcobj _]].
   apply (JCoer v H (HCons HNil k) (HCons H k) _ _ t);
@@ -118,15 +118,15 @@ Proof.
 Qed.
 
 Definition terminst_admissible :
-  forall v H G k a t s,
-    jobj v H (JK k) ->
-    (mxx.mE v -> jobj v H (Jwf k CKind)) ->
-    jterm v H G a (TFor k t) ->
-    jobj v (HCons H k) (JT t KStar) ->
-    jobj v H (JT s k) ->
-    jterm v H G a (typesystem.subst s 0 t).
+  forall v H G k a t s
+    (Hk : jobj v H (JK k))
+    (Hkwf : (mxx.mE v -> jobj v H (Jwf k CKind)))
+    (Ha : jterm v H G a (TFor k t))
+    (Ht : jobj v (HCons H k) (JT t KStar))
+    (Hs : jobj v H (JT s k))
+  , jterm v H G a (typesystem.subst s 0 t).
 Proof.
-  intros v H G k a t s Hk Hkwf Ha Ht Hs.
+  intros.
   destruct (jobj_class Hk) as [Hkcobj _].
   destruct (jobj_class Ht) as [_ [Htcobj _]].
   destruct (jobj_class Hs) as [_ [Hscobj _]].
@@ -143,14 +143,14 @@ Proof.
 Qed.
 
 Lemma deltaG_intro_jterm :
-  forall v H G k s,
-    cobj G CAEnv ->
-    jobj v HNil (Jwf H CTEnv) ->
-    jobj v HNil (JH H) ->
-    jobj v H (JT s k) ->
-    jterm v H G deltaG_intro (propinst k).
+  forall v H G k s
+    (HG : cobj G CAEnv)
+    (Hhwf : jobj v HNil (Jwf H CTEnv))
+    (HH : jobj v HNil (JH H))
+    (Hsk : jobj v H (JT s k))
+  , jterm v H G deltaG_intro (propinst k).
 Proof.
-  intros v H G k s HG Hhwf HH Hsk.
+  intros.
   destruct (jobj_class Hsk) as [Hkcobj _].
   assert (jobj v H (JK k)) as HJk. {
     repeat crush_jobj.
@@ -175,18 +175,18 @@ Proof.
 Qed.
 
 Lemma deltaG_elim_jterm :
-  forall v H G w k a t,
-    cobj G CAEnv ->
-    jobj v HNil (Jwf H CTEnv) ->
-    jobj v HNil (JH H) ->
-    jobj v H (Jwf k CKind) ->
-    jterm v H G w (propinst k) ->
-    jobj v H (JT t KStar) ->
-    jterm v (HCons H k)
-       (typesystem.lift 1 0 G) a (typesystem.lift 1 0 t) ->
-    jterm v H G (deltaG_elim w a) t.
+  forall v H G w k a t
+    (HG : cobj G CAEnv)
+    (HHwf : jobj v HNil (Jwf H CTEnv))
+    (HH : jobj v HNil (JH H))
+    (Hk : jobj v H (Jwf k CKind))
+    (Hwk : jterm v H G w (propinst k))
+    (Ht : jobj v H (JT t KStar))
+    (Hat : jterm v (HCons H k)
+                 (typesystem.lift 1 0 G) a (typesystem.lift 1 0 t))
+  , jterm v H G (deltaG_elim w a) t.
 Proof.
-  intros v H G w k a t HG HHwf HH Hk Hwk Ht Hat.
+  intros.
   unfold deltaG_elim.
   destruct (jobj_class Hk) as [Hcobj Hclassjudg]. simpl in Hclassjudg.
   { unfold propinst in Hwk.
