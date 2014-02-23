@@ -25,6 +25,16 @@ Ltac crush_cobj :=
   match goal with
     | |- cobj (lift _ _ _) _ =>
       apply cobj_lift
+    | Hyp : jobj ?v ?H (JT ?t ?k) |- cobj ?t CType =>
+      destruct (jobj_class Hyp) as [HHcobj [Htcobj _]];
+        assumption
+    | Hyp : jobj ?v ?H ?J |- cobj ?H CTEnv =>
+      destruct (jobj_class Hyp) as [HCTenv _];
+        assumption
+    | Hyp : jobj ?v ?H (JK ?k) |- cobj ?k CKind =>
+      destruct (jobj_class Hyp) as [Hkcobj]; assumption
+    | Hyp : jobj ?v ?H (Jwf ?k ?C) |- cobj ?k ?C =>
+      destruct (jobj_class Hyp) as [Hwf1 Hwf2]; assumption
     | |- cobj _ _ =>
       try repeat constructor; try auto
   end.
@@ -111,8 +121,6 @@ Lemma termgen_admissible :
   , jterm v H G a (TFor k t).
 Proof.
   intros.
-  destruct (jobj_class Hk) as [Hkcobj _].
-  destruct (jobj_class Ht) as [_ [Htcobj _]].
   apply (JCoer v H (HCons HNil k) (HCons H k) _ _ t);
     repeat crush_jobj.
 Qed.
@@ -127,9 +135,6 @@ Definition terminst_admissible :
   , jterm v H G a (typesystem.subst s 0 t).
 Proof.
   intros.
-  destruct (jobj_class Hk) as [Hkcobj _].
-  destruct (jobj_class Ht) as [_ [Htcobj _]].
-  destruct (jobj_class Hs) as [_ [Hscobj _]].
   apply (JCoer v H HNil H G a (TFor k t) (typesystem.subst s 0 t));
     repeat crush_jobj.
   rewrite typesystem.lift_0. assumption.
@@ -151,13 +156,11 @@ Lemma deltaG_intro_jterm :
   , jterm v H G deltaG_intro (propinst k).
 Proof.
   intros.
-  destruct (jobj_class Hsk) as [Hkcobj _].
   assert (jobj v H (JK k)) as HJk. {
     repeat crush_jobj.
     pose (jobj_extra Hmode Hsk Hhwf). simpl in e.
     assumption.
   }
-  destruct (jobj_class HJk) as [Hcobj Hclassjudg]. simpl in Hclassjudg.
   assert (mxx.mE v -> jobj v H (Jwf k CKind)) as Hkwf. {
     intro Hmode.
     apply (@jobj_extra v H _ Hmode HJk Hhwf).
@@ -188,7 +191,6 @@ Lemma deltaG_elim_jterm :
 Proof.
   intros.
   unfold deltaG_elim.
-  destruct (jobj_class Hk) as [Hcobj Hclassjudg]. simpl in Hclassjudg.
   { unfold propinst in Hwk.
     apply JApp with (t := TPi k (typesystem.lift 1 0 t));
       repeat crush_jobj.
