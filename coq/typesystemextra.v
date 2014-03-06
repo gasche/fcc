@@ -1708,13 +1708,20 @@ Definition extrajudg v H J :=
       jobj v H (Jwf Y0 CPEnv) -> jobj v H (Jwf Y1 CPEnv) -> jobj v H (Jwf p CProp)
     | JC Y0 Y1 H' t' t =>
       jobj v H (Jwf Y0 CPEnv) -> jobj v H (Jwf Y1 CPEnv) ->
-      ( jobj v H (JH H') /\ forall HH', Happ H H' HH' ->
+      ( jobj v H (Jwf H' CTEnv) /\ forall HH', Happ H H' HH' ->
         jobj v HH' (JT t' KStar) -> jobj v H (JT t KStar) )
     | JH H' => True
     | JG _ => True
     | Jwf _ _ => True
   end.
 Hint Unfold extrajudg.
+
+(* Lemma jobj_unshift_0: forall v H k J, *)
+(*   jobj v (HCons H k) (jlift 1 0 J) -> jobj v H J. *)
+(* Proof. *)
+(*   intros v H k J. *)
+(*   induction J; auto. *)
+
 
 Lemma jobj_extra : forall {v H J}, mE v -> jobj v H J ->
   jobj v HNil (Jwf H CTEnv) -> extrajudg v H J.
@@ -1813,31 +1820,26 @@ end; unfold extrajudg in *; crush_extra.
   eapply JTUnpack; eauto.
 (* 16: JPFix *) assumption.
 (* 15: JPCoer *)
-  match goal with Hyp: jobj v H (JH H') /\ _ |- _ => destruct Hyp as [jH' Ht] end.
-  { apply WPCoer with HH'.
-    - auto.
-    - apply (JH_extra mEv jH').
-    - auto.
-    - apply (Ht HH'); auto. }
+  match goal with Hyp: jobj v H (Jwf H' CTEnv) /\ _ |- _ => destruct Hyp as [jH' Ht] end; auto.
+  apply WPCoer with HH'; auto.
+  apply (Ht HH'); auto.
 (* 14: JCProp *)
   split; auto.
-  intros ? Ha. inversion Ha; clear Ha; subst. auto.
 (* 13: JCRefl *)
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros ? Ha; inversion Ha; clear Ha; subst; auto.
 (* 12: JCTrans *)
-  destruct H7 as [jH2 jt3].
-  pose proof (JH_extra mEv jH2) as wH2.
+  destruct H7 as [wH2 jt3].
   destruct (jobj_class wH2) as [cH cH2].
   assert (cobj HH2 CTEnv) as cHH2 by (apply (Happ_cobj H0); auto).
   assert_clear IHjobj1 jHH2; [apply (Happ_Jwf_0 _ H0); auto|].
   assert_clear IHjobj1 c1; [apply (jobj_lift_0 H0 cHH2 H5); auto|].
   assert_clear IHjobj1 c2; [apply (jobj_lift_0 H0 cHH2 H6); auto|].
-  destruct IHjobj1 as [jH1 jt2].
-  pose proof (JH_extra mEv jH1) as wH1.
+  destruct IHjobj1 as [wH1 jt2].
   destruct (jobj_class wH1) as [_ cH1].
   assert (cobj H2H1 CTEnv) by eauto using Happ_cobj.
-  split. { apply Happ_jobj with (b:=H2) (ab:=HH2) (c:=H1); auto. }
+  SearchAbout Happ.
+  split. { apply Happ_Jwf with (b:=H2) (ab:=HH2) (c:=H1); auto. }
   intros ? Ha jt1.
   apply (jt3 HH2); auto.
   apply (jt2 HH'); auto.
@@ -1845,7 +1847,7 @@ end; unfold extrajudg in *; crush_extra.
 (* 11: JCWeak *)
   destruct H4 as [jH' js].
   destruct (jobj_class jH') as [cH cH'].
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros Htmp Ha jt; inversion Ha; clear Ha; subst; rename Htmp into H.
   destruct (Happ_exists cH' H) as [HH' aHH'].
   apply (js HH'); auto.
@@ -1891,8 +1893,13 @@ end; unfold extrajudg in *; crush_extra.
   { apply (@jobj_shift_0 H k v (Jwf Y0Y1 CPEnv)); auto.
     apply (Yapp_Jwf H0); auto. }
   assert_clear IHjobj3 wYNilHk; [apply WYNil; auto using cobj|].
-  destruct IHjobj3 as [_ jt].
-  split; auto.
+  destruct IHjobj3 as [jwHk' jt].
+  split. {
+    match goal with
+      | Hyp : jobj ?v ?H (JH ?H') |- jobj ?v ?H (Jwf ?H' CTEnv) =>
+        apply JH_extra; auto
+    end.
+  }
   intros Htmp Ha jkt'; rewrite (Happ_eq Ha H1) in *; clear Htmp Ha.
   pose proof (jobj_TPi_inversion mEv jkt') as jt'.
   apply JTPi; auto.
@@ -1906,34 +1913,34 @@ end; unfold extrajudg in *; crush_extra.
   simpl; rewrite plus_0_r; auto using Happ1.
 (* 6: JCGen *)
   destruct (jobj_class H3) as [cH ck].
-  split; [apply JHCons with H; auto using Happ0, JHNil|].
+  split; [apply WHCons with H; auto using Happ0, WHNil|].
   intros ? Ha jt; inversion Ha; clear Ha; subst.
   inversion H16; clear H16; subst.
   rename H2H1 into H.
   apply JTFor; auto.
 (* 5: JCInst *)
   destruct (jobj_class H9) as [cH ck].
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros Htmp Ha jkt; inversion Ha; clear Ha; subst; rename Htmp into H.
   pose proof (jobj_TFor_inversion mEv jkt) as jt.
   apply (jobj_subst_0 jt); auto.
 (* 4: JCUnfold *)
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros Htmp Ha jkt; inversion Ha; clear Ha; subst; rename Htmp into H.
   pose proof (jobj_TMu_inversion mEv jkt) as [jt _].
   apply (jobj_subst_0 jt); auto.
 (* 3: JCFold *)
   destruct (jobj_class H5) as [_ cH].
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros Htmp Ha _; inversion Ha; clear Ha; subst; rename Htmp into H.
   apply JTMu; auto.
 (* 2: JCTop *)
-  split; auto using JHNil.
+  split; auto using WHNil.
   intros Htmp Ha _; inversion Ha; clear Ha; subst; rename Htmp into H.
   apply JTTop; auto.
 (* 1: JCBot *)
   destruct (jobj_class H3) as [_ cH].
-  split; auto using JHNil.
+  split; auto using WHNil.
 Qed.
 
 Lemma Gnth_extra : forall {v H G x t}, Gnth G x t -> jobj v H (JG G) -> jobj v H (JT t KStar).
