@@ -848,7 +848,7 @@ Inductive jobj v : tenv -> judg -> Prop :=
 | JCArr : forall H H' Y0 Y1 t' s' t s Y0Y1 HH',
   Yapp Y0 Y1 Y0Y1 ->
   Happ H H' HH' ->
-  (mS v -> jobj v H (JH H')) ->
+  (mS v -> False -> jobj v H (JH H')) ->
   (mS v -> jobj v HH' (JT t' KStar)) ->
   (mS v -> jobj v HH' (JT s' KStar)) ->
   (mE v -> jobj v H (JT t KStar)) ->
@@ -858,7 +858,7 @@ Inductive jobj v : tenv -> judg -> Prop :=
 | JCProd : forall H H' HH' Y0 Y1 t' s' t s Y0Y1,
   Yapp Y0 Y1 Y0Y1 ->
   Happ H H' HH' ->
-  (mS v -> jobj v H (JH H')) ->
+  (mS v -> False -> jobj v H (JH H')) ->
   (mS v -> jobj v HH' (JT t' KStar)) ->
   (mS v -> jobj v HH' (JT s' KStar)) ->
   jobj v H (JC Y0Y1 YNil H' t' t) ->
@@ -867,7 +867,7 @@ Inductive jobj v : tenv -> judg -> Prop :=
 | JCSum : forall H H' HH' Y0 Y1 t' s' t s Y0Y1,
   Yapp Y0 Y1 Y0Y1 ->
   Happ H H' HH' ->
-  (mS v -> jobj v H (JH H')) ->
+  (mS v -> False -> jobj v H (JH H')) ->
   (mS v -> jobj v HH' (JT t' KStar)) ->
   (mS v -> jobj v HH' (JT s' KStar)) ->
   jobj v H (JC Y0Y1 YNil H' t' t) ->

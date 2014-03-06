@@ -1988,10 +1988,9 @@ induction 1; intros; repeat destruct_extra.
   pose proof (jobj_extra mEv H4 H5) as eC; unfold extrajudg in eC.
   assert_clear eC wYNil; [apply WYNil; auto|].
   apply_clear eC wYNil.
-  destruct eC as [jH' js].
-  pose proof (JH_extra mEv jH') as wH'.
+  destruct eC as [wH' js].
   apply (js HH'); auto.
-  destruct (jobj_class jH') as [_ cH'].
+  destruct (jobj_class wH') as [_ cH'].
   assert (cobj HH' CTEnv) as cHH'; [apply (Happ_cobj H0); auto|].
   apply IHjterm; [apply (Happ_Jwf_0 v H0); auto|].
   apply (jobj_lift_0 H0 cHH' H6).
@@ -2307,7 +2306,6 @@ eapply JPRes; eauto.
   destruct Hh as [wY0 wY1].
   pose proof ((fun x => jobj_extra x IHHj) I Hwf wY0 wY1) as wC.
   inversion wC; clear wC; subst.
-  pose proof ((fun x => JH_extra x H6) I).
   split; auto.
   intros [Htmp [Ha jt']]; rewrite (Happ_eq Ha H4) in *; clear Htmp Ha.
   eapply JCProp; eauto. }
@@ -2375,7 +2373,7 @@ eapply JPRes; eauto.
     split. { apply Happ0. }
     apply (jobj_lift_0 aHH' cHH' jt). }
   pose proof ((fun x => jobj_extra x IHHj2 Hwf wY0Y1 wYNil) I) as [jH'  _].
-  apply JCArr with Y0Y1 HH'; auto. }
+  apply JCArr with Y0Y1 HH'; auto. tauto. }
 { (* JCProd *)
   rename H0 into aY0Y1, H1 into aHH'.
   destruct Hh as [wY0 wY1].
@@ -2393,7 +2391,7 @@ eapply JPRes; eauto.
   assert_clear IHHj1 c1; [|clear c1]. { exists HH'; auto. }
   assert_clear IHHj2 c1; [|clear c1]. { exists HH'; auto. }
   pose proof ((fun x => jobj_extra x IHHj1 Hwf wY0Y1 wYNil) I) as [jH' _].
-  apply JCProd with HH' Y0Y1; auto. }
+  apply JCProd with HH' Y0Y1; auto. tauto. }
 { (* JCSum *)
   rename H0 into aY0Y1, H1 into aHH'.
   destruct Hh as [wY0 wY1].
@@ -2411,7 +2409,7 @@ eapply JPRes; eauto.
   assert_clear IHHj1 c1; [|clear c1]. { exists HH'; auto. }
   assert_clear IHHj2 c1; [|clear c1]. { exists HH'; auto. }
   pose proof ((fun x => jobj_extra x IHHj1 Hwf wY0Y1 wYNil) I) as [jH' _].
-  apply JCSum with HH' Y0Y1; auto. }
+  apply JCSum with HH' Y0Y1; auto. tauto. }
 { (* JCPi *)
   rename H0 into aY0Y1, H1 into aHH', H2 into aHaH', H4 into wk.
   destruct Hh as [wY0 wY1].
@@ -2510,7 +2508,6 @@ eapply WPAnd; eauto.
   rename H0 into aHH'.
   destruct (jobj_class Hj1) as [_ cH'].
   assert (cobj HH' CTEnv) as cHH'. { apply (Happ_cobj aHH'); auto. }
-  pose proof ((fun x => JH_extra x IHHj1) I).
   assert_clear IHHj2 wHH'. { apply (Happ_Jwf_0 (b, vF) aHH' cHH'); auto. }
   clear_True.
   apply WPCoer with HH'; auto. }
@@ -2620,5 +2617,5 @@ end.
   apply_clear eC wYNil.
   apply_clear eC wYNil.
   destruct eC as [jH' _].
-  apply JCoer with H' HH' t; auto.
+  apply JCoer with H' HH' t; auto. tauto.
 Qed.

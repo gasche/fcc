@@ -82,7 +82,7 @@ Inductive jterm v : tenv -> aenv -> term -> type -> Prop :=
   jterm v H G (Inst a) (subst s 0 t)
 | JCoer : forall H H' HH' G a t s,
   Happ H H' HH' ->
-  (mS v -> jobj v H (JH H')) ->
+  (mS v -> False -> jobj v H (JH H')) ->
   (mS v -> jobj v HH' (JT t KStar)) ->
   jterm v HH' (lift (Hlength H') 0 G) a t ->
   jobj v H (JC YNil YNil H' t s) ->
