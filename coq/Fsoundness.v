@@ -164,8 +164,11 @@ Inductive semobj : obj -> sem -> Prop :=
   semobj H' (STEnv fH') ->
   semobj t' (SType ft') ->
   semobj t (SType ft) ->
-  semobj (PCoer H' t' t) (SProp (fun h k => forall a, term_lt a k -> (forall h',
-     fH' h h' -> getstar (ft' (h' ++ h)) a) -> getstar (ft h) a))
+  semobj (PCoer H' t' t) (SProp (fun h k =>
+     (exists h', fH' h h') /\
+     (forall a, term_lt a k ->
+       (forall h', fH' h h' -> getstar (ft' (h' ++ h)) a)
+       -> getstar (ft h) a)))
 | semPExi : forall k fk,
   semobj k (SKind fk) ->
   semobj (PExi k) (SProp (fun h _ => exists x, fk h x))
@@ -439,9 +442,9 @@ induction 1; simpl in *; intros; eauto using semobj.
       let H := fresh "H" in
       assert (x = y) as H; [|rewrite <- H; auto]
   end.
-  clear H0 H1 H2 IHsemobj1 IHsemobj2 IHsemobj3.
   apply functional_extensionality; intros h.
   apply functional_extensionality; intros k.
+  apply and_extensionality; intro h'0.
   apply forall_extensionality; apply functional_extensionality; intros a.
   apply arrow_extensionality; intros.
   match goal with
@@ -661,6 +664,7 @@ induction o; simpl; intros.
   f_equal.
   apply functional_extensionality; intros h.
   apply functional_extensionality; intros k.
+  apply and_extensionality; intro h'0.
   apply forall_extensionality; apply functional_extensionality; intros a.
   apply arrow_extensionality; intros.
   match goal with
@@ -924,6 +928,7 @@ induction 2; simpl in *; intros; eauto using semobj.
   clear H0 H0_0 H0_1 IHsemobj1 IHsemobj2 IHsemobj3.
   apply functional_extensionality; intros h.
   apply functional_extensionality; intros k.
+  apply and_extensionality; intros h'0.
   apply forall_extensionality; apply functional_extensionality; intros a.
   apply arrow_extensionality; intros.
   match goal with
@@ -1154,6 +1159,7 @@ induction o; simpl; intros.
   f_equal.
   apply functional_extensionality; intros h.
   apply functional_extensionality; intros k.
+  apply and_extensionality; intros h'0.
   apply forall_extensionality; apply functional_extensionality; intros a.
   apply arrow_extensionality; intros.
   match goal with
@@ -2003,7 +2009,9 @@ induction 1; unfold semjudg in *; try exact I.
   destruct (cobj_sound H3) as [ft st]; clear H3.
   exists fH, fY0, fY1; eexists.
   split; [|split; [|split; [|split]]]; eauto using semobj.
-  intros h fHh; simpl; intros k fY0j fY1j a ak Ha.
+  intros h fHh; simpl; intros k fY0j fY1j.
+  split. { eexists; eauto. }
+  intros a ak Ha.
   apply (Ha nil eq_refl).
 (* 16: JCTrans *)
   destruct IHjobj1 as [fH1 [? [? [fp1 [? [? [? [? ?]]]]]]]].
@@ -2019,16 +2027,29 @@ induction 1; unfold semjudg in *; try exact I.
   destruct (Happ_semobj H2 H1 _ H3 _ H12_ _ H7_) as [fH2H1 ?].
   exists fH, fY0, fY1; eexists.
   split; [|split; [|split; [|split]]]; eauto using semobj.
-  intros h fHh. simpl; intros.
-  apply H13 with k; auto; intros h' fH2h.
+  intros h fHh. simpl; intros k HY0 HY1.
+  destruct (H13 h fHh k HY0 HY1) as [[h2'0 fH2'0] H13'].
+  pose proof (Happ_fH_nil H H2 _ H0 _ H9 _ H12_ _ H4 h h2'0 fHh fH2'0) as fHH2'0.
+  pose proof (H8 _ fHH2'0 k) as H8'.
+  rewrite (stenv_length _ _ H12_ _ _ fH2'0) in H8'.
+  rewrite (skipn_app_length _ h h2'0) in H8'.
+  pose proof (H8' HY0 HY1) as [ [ h1'0 fH1'0 ] H8'' ].
+  split. {
+    exists (h1'0 ++ h2'0).
+    Check Happ_fH.
+    apply (Happ_fH H2 H1 H2H1 H3 fH2 H12_ fH1 H7_ _ H6 h h2'0 h1'0 fH2'0 fH1'0).
+  }
+  intros a ak Ha.
+  apply H13'; auto. intros h' fH2h.
   pose proof (Happ_fH_nil H H2 _ H0 _ H9 _ H12_ _ H4 h h' fHh fH2h) as fHH2h.
   pose proof (H8 (h' ++ h) fHH2h).
   rewrite (stenv_length _ _ H12_ _ _ fH2h) in *.
   rewrite (skipn_app_length _ h h') in *.
-  apply H17 with k; auto.
+  destruct (H12 k HY0 HY1) as [[h'1 fH'1] H14'].
+  apply H14'; auto.
   intros h'' fH1h.
   rewrite app_assoc.
-  apply H16.
+  apply Ha.
   apply (Happ_fH _ _ _ H3 _ H12_ _ H7_ _ H6 h h' h''); auto.
 (* 15: JCWeak *)
   destruct IHjobj as [fH [fY0 [fY1 [fp [? [? [? [? ?]]]]]]]].
@@ -2038,19 +2059,22 @@ induction 1; unfold semjudg in *; try exact I.
   rename ft into fs, s0 into ft; subst ft'.
   exists fH, fY0, fY1; eexists.
   split; [|split; [|split; [|split]]]; eauto using semobj.
-  intros h fHh; simpl; intros.
-  apply H5 with k; auto.
-  intros h' fH'h.
-  rewrite (stenv_length _ _ H4_ _ _ fH'h).
+  intros h fHh; simpl; intros k HY0 HY1.
+  destruct (H5 h fHh k HY0 HY1) as [[h'0 fH'0] H5'].
+  split. { eexists. eauto. }
+  intros a ak Ha.
+  apply H5'; auto.
+  intros h' fHh'.
+  rewrite (stenv_length _ _ H4_ _ _ fHh').
   rewrite skipn_app_length.
-  apply (H9 nil eq_refl).
+  apply (Ha nil eq_refl).
 (* 14: JCArr *)
-  rename H0 into aY0Y1, H1 into aHH'.
-  destruct (H3 I) as [fH1 [fH' [? [? CH']]]].
+  - rename H0 into aY0Y1, H1 into aHH'.
+  (* destruct (H3 I) as [fH1 [fH' [? [? CH']]]]. *)
   destruct (H5 I) as [fH2 [ft' [? [? [? [? Ct']]]]]].
   destruct (H7 I) as [fH3 [fs' [? [? [? [? Cs']]]]]].
   destruct IHjobj1 as [fH4 [fY01 [fY11 [fpt [? [? [? [? Cpt]]]]]]]].
-  destruct IHjobj2 as [fH5 [fY02 [fY12 [fps [? [? [? [? Cps]]]]]]]].
+  destruct IHjobj2 as [fH5 [fY02 [fY12 [fps [? [? [? [Hss' Cps]]]]]]]].
   semobj_cstr.
   semobj_unlift.
   repeat match goal with H : jobj _ |- _ => clear H end.
@@ -2065,13 +2089,14 @@ induction 1; unfold semjudg in *; try exact I.
   destruct (Yapp_semobj_rev Y0 Y1 Y0Y1 aY0Y1 fY0Y1 sY0Y1) as [fY0 [fY1 [sY0 [sY1 eqY0Y1]]]].
   exists fH, fY0, fY1. eexists.
   split; [|split; [|split; [|split]]]; eauto using semobj.
-  intros h fHh; simpl; intros k fY0j fY1j a ak Ha.
-  match type of Ha with
+  intros h fHh; simpl; intros k fY0j fY1j.
+  intros a ak Ha.
+  { match type of Ha with
     forall h', ?cond -> EArr ?R ?S a => apply Cl_approx_For with semenv
       (fun h' => cond) (fun h' _ => PArr R S) k; auto
-  end.
+    end.
   (* +1 well-formedness *)
-    intros h' fH'h.
+  - intros h' fH'h.
     pose proof (Happ_fH_nil H H' HH' aHH' fH sH fH' sH' fHH' sHH' h h' fHh fH'h) as fHH'h.
     pose proof (Ct' (h' ++ h) fHH'h) as xCt'.
     pose proof (Cs' (h' ++ h) fHH'h) as xCs'.
@@ -2079,7 +2104,7 @@ induction 1; unfold semjudg in *; try exact I.
     destruct (fs' (h' ++ h)); simpl in xCs'; try (exfalso; assumption).
     simpl; apply C_PArr; apply C_CE; auto.
   (* +0 inclusion *)
-  clear a ak Ha.
+  - clear a ak Ha.
   intros a ak Ha.
   destruct (CH' h fHh) as [wh' wfH'h].
   destruct (Ha wh' wfH'h) as [j [a' [Heq [Hok _]]]].
