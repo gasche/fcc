@@ -570,6 +570,7 @@ Inductive jeq : type -> type -> class -> Prop :=
   jeq G1 G2 CAEnv -> jeq t1 t2 CType -> jeq (GCons G1 t1) (GCons G2 t2) CAEnv
 | EQTFstPair : forall t s, cobj t CType -> cobj s CType -> jeq (TFst (TPair t s)) t CType
 | EQTSndPair : forall t s, cobj t CType -> cobj s CType -> jeq (TSnd (TPair t s)) s CType
+| EQPairEta : forall t, cobj t CType -> jeq (TPair (TFst t) (TSnd t)) t CType
 .
 
 (** *** Objects

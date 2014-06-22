@@ -22,11 +22,66 @@ Require Import typesystemextra.
 written [so] and contain sets [SSet R], the unit object [SUnit], and
 pairs [SPair so1 so2].
 *)
-Inductive sobj :=
+Inductive sobj_ne :=
 | SSet (R : set)
 | SUnit
-| SPair (so1 : sobj) (so2 : sobj)
+| SFst (so : sobj_ne)
+| SSnd (so : sobj_ne)
 .
+Inductive sobj :=
+| SPair (so1 : sobj) (so2 : sobj)
+| SNe (so : sobj_ne)
+.
+
+Definition sfst so :=
+  match so with
+    | SPair so1 so2 => so1
+    | SNe son => SNe (SFst son)
+  end.
+
+Definition ssnd so :=
+  match so with
+    | SPair so1 so2 => so2
+    | SNe son => SNe (SSnd son)
+  end.
+
+Inductive sobj_eq : sobj -> sobj -> Prop :=
+| SNN : forall so1 so2, so1 = so2 -> sobj_eq (SNe so1) (SNe so2)
+| SPP : forall so11 so12 so21 so22,
+          sobj_eq so11 so21 ->
+          sobj_eq so12 so22 ->
+          sobj_eq (SPair so11 so12) (SPair so21 so22)
+| SPN : forall so1 so2 son,
+          sobj_eq so1 (SNe (SFst son)) ->
+          sobj_eq so2 (SNe (SSnd son)) ->
+          sobj_eq (SPair so1 so2) (SNe son)
+| SNP : forall son so1 so2,
+          sobj_eq (SNe (SFst son)) so1 ->
+          sobj_eq (SNe (SSnd son)) so2 ->
+          sobj_eq (SNe son) (SPair so1 so2).
+
+Lemma sobj_eq_refl : forall so, sobj_eq so so.
+Proof. induction so; constructor; auto. Qed.
+
+Lemma sobj_eq_symm : forall so1 so2,
+  sobj_eq so1 so2 -> sobj_eq so2 so1.
+Proof. induction 1; constructor; auto. Qed.
+
+Lemma sobj_eq_trans : forall so1 so2 so3,
+  sobj_eq so1 so2 -> sobj_eq so2 so3 -> sobj_eq so1 so3.
+Proof.
+  intros so1 so2 so3 H12.
+  generalize dependent so3.
+  induction H12; intros so3 H23;
+    (destruct so3; inversion H23; subst; constructor; auto).
+  assert (sobj_eq (SNe (SFst son)) (SNe (SFst so))) by auto.
+  inversion H. injection H4. auto.
+Qed.
+
+Lemma sobj_eq_eta : forall so, sobj_eq so (SPair (sfst so) (ssnd so)).
+Proof.
+  induction so; simpl; constructor; apply sobj_eq_refl.
+Qed.
 
 (** Semantic environments are lists of semantic objects.
 *)
@@ -54,45 +109,32 @@ Inductive sem :=
 *)
 Definition sstar f so :=
   match so with
-    | SSet R => f R
-    | SUnit => False
-    | SPair _ _ => False
+    | SNe (SSet R) => f R
+    | _ => False
   end.
 
 Definition sunit so :=
   match so with
-    | SSet _ => False
-    | SUnit => True
-    | SPair _ _ => False
+    | SNe SUnit => True
+    | _ => False
   end.
 
 Definition sprod f1 f2 so :=
   match so with
-    | SSet _ => False
-    | SUnit => False
     | SPair so1 so2 => f1 so1 /\ f2 so2
+    | _ => False
   end.
 
 Definition getstar so :=
   match so with
-    | SSet R => R
+    | SNe (SSet R) => R
     | _ => ETop
   end.
 
-Definition lt2 f x y := SSet (f (getstar x) (getstar y)).
-
-Definition sfst so :=
-  match so with
-    | SPair x _ => x
-    | _ => SUnit
-  end.
-
-Definition ssnd so :=
-  match so with
-    | SPair _ y => y
-    | _ => SUnit
-  end.
+Definition lt2 f x y := SNe (SSet (f (getstar x) (getstar y))).
 Hint Unfold sstar sunit sprod getstar lt2 sfst snd.
+
+Coercion SNe : sobj_ne >-> sobj.
 
 (** *** Object interpretation *)
 
@@ -140,7 +182,7 @@ Inductive semobj : obj -> sem -> Prop :=
   semobj (TPi k t) (SType (fun h => SSet (EPi sobj (fk h) (fun x _ => getstar (ft (x :: h))))))
 | semTMu : forall t ft,
   semobj t (SType ft) ->
-  semobj (TMu t) (SType (fun h => SSet (EMu (fun x => getstar (ft (SSet x :: h))))))
+  semobj (TMu t) (SType (fun h => SSet (EMu (fun x => getstar (ft (SNe (SSet x) :: h))))))
 | semTBot : semobj TBot (SType (fun _ => SSet EBot))
 | semTTop : semobj TTop (SType (fun _ => SSet ETop))
 | semTUnit : semobj TUnit (SType (fun _ => SUnit))
@@ -593,7 +635,7 @@ induction o; simpl; intros.
   destruct (IHo _ _ H) as [s [? ?]].
   destruct s; simpl in H1; inversion H1.
   rename s into fi.
-  exists (SType (fun h => SSet (EMu (fun x => getstar (fi (SSet x :: h)))))).
+  exists (SType (fun h => SSet (EMu (fun x => getstar (fi (SNe (SSet x) :: h)))))).
   split; eauto using semobj.
 (* 17: TBot *)
   dep H.
@@ -773,7 +815,7 @@ Definition insn x := fix f i h : semenv :=
     | O => x h :: h
     | S i =>
         match h with
-          | nil => cons SUnit (f i nil)
+          | nil => cons (SNe SUnit) (f i nil)
           | cons x h => cons x (f i h)
         end
   end.
@@ -782,7 +824,7 @@ Definition insn x := fix f i h : semenv :=
 are the same as those of [h].
 *)
 Lemma nth_insn1 : forall i n, n < i ->
-  forall x h, nth n h SUnit = nth n (insn x i h) SUnit.
+  forall x (h : semenv), nth n h SUnit = nth n (insn x i h) SUnit.
 Proof.
 induction i; simpl; intros; [inversion H|].
 destruct n; destruct h; simpl; auto.
@@ -806,7 +848,7 @@ induction i; simpl; auto.
 Qed.
 
 Lemma nth_insn2_nil : forall i n, i <= n ->
-  forall x, SUnit = nth (1 + n) (insn x i nil) SUnit.
+  forall x, (SUnit : sobj) = nth (1 + n) (insn x i nil) SUnit.
 Proof.
 induction i; simpl; intros.
 destruct n; auto.
@@ -819,7 +861,7 @@ Qed.
 position [1 + i] of [insn x i h].
 *)
 Lemma nth_insn2 : forall i n, i <= n ->
-  forall x h, nth n h SUnit = nth (1 + n) (insn x i h) SUnit.
+  forall x (h : semenv), nth n h SUnit = nth (1 + n) (insn x i h) SUnit.
 Proof.
 induction i; simpl; intros; auto.
 destruct n; simpl; [inversion H|].
@@ -829,7 +871,7 @@ apply IHi; omega.
 Qed.
 
 Lemma nth_insn2_minus : forall n i, i < n ->
-  forall x h, nth (n - 1) h SUnit = nth n (insn x i h) SUnit.
+  forall x (h : semenv), nth (n - 1) h SUnit = nth n (insn x i h) SUnit.
 Proof.
 induction n; simpl; intros; [inversion H|].
 rewrite <- minus_n_O.
@@ -1086,7 +1128,7 @@ induction o; simpl; intros.
   destruct (IHo _ _ H0) as [s [? ?]].
   destruct s; simpl in H2; inversion H2.
   rename s into fi.
-  exists (SType (fun h => SSet (EMu (fun x => getstar (fi (SSet x :: h)))))).
+  exists (SType (fun h => SSet (EMu (fun x => getstar (fi (SNe (SSet x) :: h)))))).
   split; eauto using semobj.
 (* 17: TBot *)
   dep H0.
@@ -1433,7 +1475,7 @@ of [rec].
 Definition srec a t rec :=
   forall ft, semobj t (SType ft) ->
   forall h' h, length h' = a ->
-    WFj (srecsort rec) (fun X => getstar (ft (h' ++ SSet X :: h))).
+    WFj (srecsort rec) (fun X => getstar (ft (h' ++ SNe (SSet X) :: h))).
 
 Hint Unfold srecsort srec.
 
@@ -1487,11 +1529,11 @@ induction 1; intros ft Hft h' h ?; simpl.
   pose proof (semobj_lift_rev _ _ _ _ Hft1) as [x [? Heq]].
   destruct x; simpl in Heq; inversion Heq; clear Heq; subst.
   rename P into fk'.
-  apply WFj_EFor with sobj (fk' (h' ++ h)) (fun X x _ => getstar (ft (x :: h' ++ SSet X :: h))).
+  apply WFj_EFor with sobj (fk' (h' ++ h)) (fun X x _ => getstar (ft (x :: h' ++ SNe (SSet X) :: h))).
   (* +1 *)
     intros x fkx.
-    replace (fun X => getstar (ft (x :: h' ++ SSet X :: h)))
-      with (fun X => getstar (ft ((x :: h') ++ SSet X :: h))) by reflexivity.
+    replace (fun X => getstar (ft (x :: h' ++ SNe (SSet X) :: h)))
+      with (fun X => getstar (ft ((x :: h') ++ SNe (SSet X) :: h))) by reflexivity.
     apply IHjrec; auto.
   (* +0 *)
     intros X.
@@ -1527,7 +1569,7 @@ induction 1; intros ft Hft h' h ?; simpl.
   repeat f_equal.
   apply functional_extensionality_dep; intros x.
   apply functional_extensionality_dep; intros _.
-  replace (x :: h' ++ SSet R :: h) with ((x :: h') ++ SSet R :: h) by reflexivity.
+  replace (x :: h' ++ SNe (SSet R) :: h) with ((x :: h') ++ SNe (SSet R) :: h) by reflexivity.
   rewrite (IHjrec ft); auto.
   simpl; replace (k - 0) with k by omega.
   reflexivity.
@@ -1538,10 +1580,10 @@ induction 1; intros ft Hft h' h ?; simpl.
   (* +1 *)
     intros X.
     apply WFj_WF.
-    apply (IHjrec1 ft Hft nil (h' ++ SSet X :: h)); auto.
+    apply (IHjrec1 ft Hft nil (h' ++ SNe (SSet X) :: h)); auto.
   (* +0 *)
     intros Y.
-    pose proof (IHjrec2 ft Hft (SSet Y :: h') h).
+    pose proof (IHjrec2 ft Hft (SNe (SSet Y) :: h') h).
     simpl in H2; auto.
 (* 2: RECwf *)
   subst t.
@@ -1587,7 +1629,8 @@ Qed.
 (** The interpretation of the equality judgment [jeq t s] is [seq t s]
 and says that the interpretations of [t] and [s] are equal.
 *)
-Definition seq t s := forall x y, semobj t x -> semobj s y -> x = y.
+Definition seq t s :=
+  forall x y, semobj t x -> semobj s y -> x = y.
 Hint Unfold seq.
 
 (** Soundness of the equality judgment. *)
@@ -1600,21 +1643,28 @@ repeat match goal with
   | IH : seq ?a ?b, Ha : semobj ?a _, Hb : semobj ?b _ |- _ =>
     pose proof (IH _ _ Ha Hb) as Heq; clear IH Ha Hb; inversion Heq; clear Heq; subst
 end; reflexivity).
-(* 5: EQeq *) semobjeq t; auto.
-(* 4: EQsym *) rewrite (IHjeq y x); auto.
-(* 3: EQtrans *)
+- (* 5: EQeq *) semobjeq t; auto.
+- (* 4: EQsym *) rewrite (IHjeq y x); auto.
+- (* 3: EQtrans *)
   pose proof (jeq_class H) as [_ co2].
   pose proof (cobj_sound co2) as Ht2.
   destruct c; destruct Ht2 as [? Hc];
   rewrite (IHjeq1 _ _ Hx Hc); auto.
-(* 2: EQTFstPair *)
+- (* 2: EQTFstPair *)
   semobj_cstr.
   simpl. semobjeq t.
   reflexivity.
-(* 1: EQTSndPair *)
+- (* 1: EQTSndPair *)
   semobj_cstr.
   simpl. semobjeq s.
   reflexivity.
+- (* 0: EQPairEta *)
+  semobj_cstr.
+  repeat semobjeq t.
+  f_equal.
+  apply functional_extensionality.
+  intro env.
+  destruct (ft0 env); simpl; auto.
 Qed.
 
 (** *** Objects *)
